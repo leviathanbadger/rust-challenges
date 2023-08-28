@@ -18,7 +18,7 @@ impl Calculator {
         let tokens = self.tokenizer.tokenize(str);
 
         for token in tokens {
-            println!("{:?}", token);
+            println!("{}", token);
         }
 
         todo!("Not implemented!");

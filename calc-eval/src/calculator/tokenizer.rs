@@ -1,6 +1,7 @@
 use std::{
     iter::Peekable,
-    str::CharIndices
+    str::CharIndices,
+    fmt::Display
 };
 
 macro_rules! count {
@@ -48,6 +49,12 @@ pub enum TokenType {
 pub struct Token<'a> {
     source: &'a str,
     token_type: TokenType
+}
+
+impl<'a> Display for Token<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("<{:?}; {:?}>", self.token_type, self.source))
+    }
 }
 
 pub struct Tokenize<'a> {

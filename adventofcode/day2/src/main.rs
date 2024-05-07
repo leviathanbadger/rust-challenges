@@ -23,6 +23,14 @@ impl Game {
             .iter()
             .all(|set| set.red <= max_set.red && set.green <= max_set.green && set.blue <= max_set.blue)
     }
+
+    fn fewest_cubes(&self) -> GameSet {
+        GameSet {
+            red: self.sets.iter().max_by_key(|set| set.red).unwrap().red,
+            green: self.sets.iter().max_by_key(|set| set.green).unwrap().green,
+            blue: self.sets.iter().max_by_key(|set| set.blue).unwrap().blue
+        }
+    }
 }
 
 lazy_static! {
@@ -94,9 +102,7 @@ fn parse_games(input: &String, games: &mut Vec<Game>) {
 
 const DAY2_PART1_MAX_SET: GameSet = GameSet { red: 12, green: 13, blue: 14 };
 
-fn day2part1(input: &String) -> u32 {
-    let mut games = vec!();
-    parse_games(input, &mut games);
+fn day2part1(games: &Vec<Game>) -> u32 {
     games
         .iter()
         .filter(|game| game.is_game_possible(DAY2_PART1_MAX_SET))
@@ -104,11 +110,22 @@ fn day2part1(input: &String) -> u32 {
         .sum()
 }
 
+fn day2part2(games: &Vec<Game>) -> u32 {
+    games
+        .iter()
+        .map(|game| game.fewest_cubes())
+        .map(|set| set.red * set.green * set.blue)
+        .sum()
+}
+
 fn main() {
     let input = fs::read_to_string("input.txt")
         .expect("Could not read input.txt");
+    let mut games = vec!();
+    parse_games(&input, &mut games);
 
-    println!("Day 2 part 1 answer: {}", day2part1(&input));
+    println!("Day 2 part 1 answer: {}", day2part1(&games));
+    println!("Day 2 part 2 answer: {}", day2part2(&games));
 }
 
 #[cfg(test)]
@@ -144,6 +161,20 @@ Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
 Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
 Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
 Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green";
-        assert_eq!(day2part1(&INPUT.to_owned()), 8);
+        let mut games = vec!();
+        parse_games(&INPUT.to_owned(), &mut games);
+        assert_eq!(day2part1(&games), 8);
+    }
+
+    #[test]
+    fn day2part2_returns_correct_value() {
+        const INPUT: &str = "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
+Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
+Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
+Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
+Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green";
+        let mut games = vec!();
+        parse_games(&INPUT.to_owned(), &mut games);
+        assert_eq!(day2part2(&games), 2286);
     }
 }

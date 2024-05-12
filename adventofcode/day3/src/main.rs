@@ -1,4 +1,12 @@
-use std::fs;
+use std::{collections::HashMap, fs};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EnginePart {
+    value: u32,
+    line_idx: usize,
+    idx: usize,
+    len: usize
+}
 
 struct EngineParser<'a> {
     line_bytes: &'a Vec<&'a [u8]>,
@@ -17,7 +25,7 @@ impl<'a> EngineParser<'a> {
 }
 
 impl<'a> Iterator for EngineParser<'a> {
-    type Item = u32;
+    type Item = EnginePart;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.current_line_idx < self.line_bytes.len() {
@@ -43,7 +51,12 @@ impl<'a> Iterator for EngineParser<'a> {
                             for w in (i32::max(start_idx.unwrap() as i32 - 1, 0) as usize)..usize::min(bit_idx + 1, line.len()) {
                                 let bit = self.line_bytes[q][w];
                                 if (bit < 0x30 || bit > 0x39) && bit != 0x2e && bit != 0x20 && bit != 0x0D && bit != 0x0A {
-                                    return Some(num_accum);
+                                    return Some(EnginePart {
+                                        value: num_accum,
+                                        line_idx: self.current_line_idx,
+                                        idx: start_idx.unwrap(),
+                                        len: bit_idx - start_idx.unwrap()
+                                    });
                                 }
                             }
                         }
@@ -60,7 +73,7 @@ impl<'a> Iterator for EngineParser<'a> {
     }
 }
 
-fn day2part1(input: &String) -> u32 {
+fn day3part1(input: &String) -> u32 {
     let line_bytes = input
         .split("\n")
         .map(|line| line.as_bytes())
@@ -68,14 +81,80 @@ fn day2part1(input: &String) -> u32 {
         .collect::<Vec<&[u8]>>();
 
     EngineParser::create(&line_bytes)
+        .map(|part| part.value)
         .sum()
+}
+
+fn get_gear_components(line_bytes: &Vec<&[u8]>, parts_map: &HashMap<usize, Vec<EnginePart>>, row: usize, column: usize) -> Option<(EnginePart, EnginePart)> {
+    let mut first: Option<EnginePart> = None;
+    let mut second: Option<EnginePart> = None;
+
+    for q in (i32::max((row as i32) - 1, 0) as usize)..usize::min(row + 2, line_bytes.len()) {
+        if let Some(parts) = parts_map.get(&q) {
+            for w in 0..parts.len() {
+                let part = parts[w];
+                if part.idx > column + 1 || part.idx + part.len < column {
+                    continue;
+                }
+                if second.is_some() {
+                    return None;
+                }
+                second = first;
+                first = Some(part);
+            }
+        }
+    }
+
+    if second.is_some() && first.is_some() {
+        return Some((second.unwrap(), first.unwrap()));
+    }
+
+    None
+}
+
+fn day3part2(input: &String) -> u32 {
+    let line_bytes = input
+        .split("\n")
+        .map(|line| line.as_bytes())
+        .filter(|line_bytes| line_bytes.len() > 0)
+        .collect::<Vec<&[u8]>>();
+
+    let parts = EngineParser::create(&line_bytes)
+        .collect::<Vec<EnginePart>>();
+
+    let mut map = HashMap::<usize, Vec<EnginePart>>::new();
+    for part in parts {
+        let line_idx = part.line_idx;
+        if !map.contains_key(&line_idx) {
+            map.insert(line_idx, vec!());
+        }
+        let line_parts = map.get_mut(&line_idx).unwrap();
+        line_parts.push(part);
+    }
+
+    let mut sum = 0;
+
+    for q in 0..line_bytes.len() {
+        let line = line_bytes[q];
+        for w in 0..line.len() {
+            let bit = line[w];
+            if bit == 0x2a {
+                if let Some((p1, p2)) = get_gear_components(&line_bytes, &map, q, w) {
+                    sum += p1.value * p2.value;
+                }
+            }
+        }
+    }
+
+    sum
 }
 
 fn main() {
     let input = fs::read_to_string("input.txt")
         .expect("Could not read input.txt");
 
-    println!("Day 3 part 1 answer: {}", day2part1(&input));
+    println!("Day 3 part 1 answer: {}", day3part1(&input));
+    println!("Day 3 part 2 answer: {}", day3part2(&input));
 }
 
 #[cfg(test)]
@@ -94,7 +173,7 @@ mod tests {
 ......755.
 ...$.*....
 .664.598..";
-        assert_eq!(day2part1(&INPUT.to_owned()), 4361);
+        assert_eq!(day3part1(&INPUT.to_owned()), 4361);
     }
 
     #[test]
@@ -111,7 +190,7 @@ mod tests {
 2.2......12.
 .*.........*
 1.1.......56";
-        assert_eq!(day2part1(&INPUT.to_owned()), 413);
+        assert_eq!(day3part1(&INPUT.to_owned()), 413);
     }
 
     #[test]
@@ -129,7 +208,7 @@ mod tests {
 2.2......12.
 .*.........*
 1.1..503+.56";
-        assert_eq!(day2part1(&INPUT.to_owned()), 925);
+        assert_eq!(day3part1(&INPUT.to_owned()), 925);
     }
 
     #[test]
@@ -138,7 +217,7 @@ mod tests {
 ..7*..*.......
 ...*13*.......
 .......15.....";
-        assert_eq!(day2part1(&INPUT.to_owned()), 40);
+        assert_eq!(day3part1(&INPUT.to_owned()), 40);
     }
 
     #[test]
@@ -146,14 +225,14 @@ mod tests {
         const INPUT: &str = "........
 .24..4..
 ......*.";
-        assert_eq!(day2part1(&INPUT.to_owned()), 4);
+        assert_eq!(day3part1(&INPUT.to_owned()), 4);
     }
 
     #[test]
     fn day3part1_returns_correct_value_6() {
         const INPUT: &str = "100
 200";
-        assert_eq!(day2part1(&INPUT.to_owned()), 0);
+        assert_eq!(day3part1(&INPUT.to_owned()), 0);
     }
 
     #[test]
@@ -161,7 +240,7 @@ mod tests {
         const INPUT: &str = "416.........................559...............417...............785.......900.......284...........503...796....992..........................
 .........702*....772............378..569.........&.49..606...14*..............$.453*.........307....*......$.....-.................995......
 .....................458...856......+.........+....&..............680.......104.............%....516.................................*......";
-        assert_eq!(day2part1(&INPUT.to_owned()), 7486);
+        assert_eq!(day3part1(&INPUT.to_owned()), 7486);
     }
 
     #[test]
@@ -175,7 +254,8 @@ mod tests {
             .filter(|line_bytes| line_bytes.len() > 0)
             .collect::<Vec<&[u8]>>();
 
-        let mut parser = EngineParser::create(&line_bytes);
+        let mut parser = EngineParser::create(&line_bytes)
+            .map(|part| part.value);
 
         assert_eq!(parser.next(), Some(417));
         assert_eq!(parser.next(), Some(785));
@@ -214,7 +294,136 @@ mod tests {
 ..*"
         ];
         for input in INPUTS {
-            assert_eq!(day2part1(&input.to_owned()), 42);
+            assert_eq!(day3part1(&input.to_owned()), 42);
         }
+    }
+
+    #[test]
+    fn day3part2_returns_correct_value() {
+        const INPUT: &str = "467..114..
+...*......
+..35..633.
+......#...
+617*......
+.....+.58.
+..592.....
+......755.
+...$.*....
+.664.598..";
+        assert_eq!(day3part2(&INPUT.to_owned()), 467835);
+    }
+
+    #[test]
+    fn day3part2_returns_correct_value_2() {
+        const INPUT: &str = "12.......*..
++.........34
+.......-12..
+..78........
+..*....60...
+78..........
+.......23...
+....90*12...
+............
+2.2......12.
+.*.........*
+1.1.......56";
+        assert_eq!(day3part2(&INPUT.to_owned()), 6756);
+    }
+
+    #[test]
+    fn day3part2_returns_correct_value_3() {
+        const INPUT: &str = "12.......*..
++.........34
+.......-12..
+..78........
+..*....60...
+78.........9
+.5.....23..$
+8...90*12...
+............
+2.2......12.
+.*.........*
+1.1..503+.56";
+        assert_eq!(day3part2(&INPUT.to_owned()), 6756);
+    }
+
+    #[test]
+    fn day3part2_returns_correct_value_4() {
+        const INPUT: &str = ".......5......
+..7*..*.......
+...*13*.......
+.......15.....";
+        assert_eq!(day3part2(&INPUT.to_owned()), 442);
+    }
+
+    #[test]
+    fn day3part2_returns_correct_value_5() {
+        const INPUTS: [&str; 8] = [
+            ".2*3.",
+            "..*..
+.2.3.",
+            ".2.3.
+..*..",
+            ".2
+*.
+.3",
+            "2.
+.*
+3.",
+            "2
+*
+3",
+            "2..
+.*.
+..3",
+            "..2
+.*.
+3.."
+        ];
+        for input in INPUTS {
+            assert_eq!(day3part2(&input.to_owned()), 6);
+        }
+    }
+
+    #[test]
+    fn day3part2_returns_correct_value_6() {
+        const INPUT: &str = "......755.
+...$.*....
+.664.598..";
+        assert_eq!(day3part2(&INPUT.to_owned()), 451490);
+    }
+
+    #[test]
+    fn get_gear_components_returns_correct_value() {
+        const INPUT: &str = "2..
+.*.
+..3";
+
+        let line_bytes = INPUT
+            .split("\n")
+            .map(|line| line.as_bytes())
+            .filter(|line_bytes| line_bytes.len() > 0)
+            .collect::<Vec<&[u8]>>();
+
+        let parts = EngineParser::create(&line_bytes)
+            .collect::<Vec<EnginePart>>();
+
+        let mut map = HashMap::<usize, Vec<EnginePart>>::new();
+        for part in parts {
+            let line_idx = part.line_idx;
+            if !map.contains_key(&line_idx) {
+                map.insert(line_idx, vec!());
+            }
+            let line_parts = map.get_mut(&line_idx).unwrap();
+            line_parts.push(part);
+        }
+
+        let components = get_gear_components(&line_bytes, &map, 1, 1);
+
+        assert!(components.is_some());
+        let (first, second) = components.unwrap();
+
+        assert_eq!(first.value, 2);
+        assert_eq!(second.value, 3);
     }
 }

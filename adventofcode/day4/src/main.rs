@@ -1,5 +1,5 @@
 use core::result::Result::Ok;
-use std::fs;
+use std::{fs, num::ParseIntError};
 use anyhow::*;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -16,10 +16,6 @@ lazy_static! {
     static ref CARD_REGEX: Regex = Regex::new(r"^Card *([0-9]+): *([0-9 ]+)[|]([0-9 ]+)$").unwrap();
 }
 
-fn parse_num(str: &str) -> Result<u32> {
-    Ok(str.parse::<u32>()?)
-}
-
 fn parse_card(line: &str) -> Result<Scratchcard> {
     let capture_opt = CARD_REGEX.captures(line.trim());
     match capture_opt {
@@ -30,13 +26,13 @@ fn parse_card(line: &str) -> Result<Scratchcard> {
             let winning_numbers = winning_nums_str
                 .split(' ')
                 .filter(|num_str| !num_str.is_empty())
-                .map(parse_num)
-                .collect::<Result<Vec<u32>>>()?;
+                .map(|num_str| num_str.parse::<u32>())
+                .collect::<Result<Vec<u32>, ParseIntError>>()?;
             let actual_numbers = actual_nums_str
                 .split(' ')
                 .filter(|num_str| !num_str.is_empty())
-                .map(parse_num)
-                .collect::<Result<Vec<u32>>>()?;
+                .map(|num_str| num_str.parse::<u32>())
+                .collect::<Result<Vec<u32>, ParseIntError>>()?;
             Ok(Scratchcard {
                 id,
                 winning_numbers,

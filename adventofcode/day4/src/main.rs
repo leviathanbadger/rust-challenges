@@ -57,12 +57,16 @@ fn parse_cards(input: &String, cards: &mut Vec<Scratchcard>) {
     }
 }
 
-fn get_card_score(card: &Scratchcard) -> u32 {
-    let num_duplicates = card.winning_numbers
+fn get_card_num_duplicates(card: &Scratchcard) -> usize {
+    card.winning_numbers
         .iter()
         .map(|num| card.actual_numbers.contains(num))
         .filter(|is_match| *is_match)
-        .count();
+        .count()
+}
+
+fn get_card_score(card: &Scratchcard) -> u32 {
+    let num_duplicates = get_card_num_duplicates(card);
     match num_duplicates {
         0 => 0,
         _ => 2_i32.pow((num_duplicates as u32) - 1) as u32
@@ -75,6 +79,18 @@ fn day4part1(cards: &Vec<Scratchcard>) -> u32 {
         .sum()
 }
 
+fn day4part2(cards: &Vec<Scratchcard>) -> u32 {
+    let mut copies = vec![1; cards.len()];
+    for q in 0..cards.len() {
+        let num_copies_q = copies[q];
+        let num_dups = get_card_num_duplicates(&cards[q]);
+        for w in 0..num_dups {
+            copies[q + w + 1] += num_copies_q;
+        }
+    }
+    copies.iter().sum()
+}
+
 fn main() {
     let input = fs::read_to_string("input.txt")
         .expect("Could not read input.txt");
@@ -82,6 +98,7 @@ fn main() {
     parse_cards(&input, &mut cards);
 
     println!("Day 4 part 1 answer: {}", day4part1(&cards));
+    println!("Day 4 part 2 answer: {}", day4part2(&cards));
 }
 
 #[cfg(test)]
@@ -145,5 +162,18 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11";
         let mut cards = vec![];
         parse_cards(&INPUT.to_owned(), &mut cards);
         assert_eq!(day4part1(&cards), 13);
+    }
+
+    #[test]
+    fn day4part2_returns_correct_value() {
+        const INPUT: &str = "Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
+Card 2: 13 32 20 16 61 | 61 30 68 82 17 32 24 19
+Card 3:  1 21 53 59 44 | 69 82 63 72 16 21 14  1
+Card 4: 41 92 73 84 69 | 59 84 76 51 58  5 54 83
+Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
+Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11";
+        let mut cards = vec![];
+        parse_cards(&INPUT.to_owned(), &mut cards);
+        assert_eq!(day4part2(&cards), 30);
     }
 }

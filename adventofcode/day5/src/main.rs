@@ -3,6 +3,7 @@ use std::{fs, num::ParseIntError};
 use anyhow::*;
 use lazy_static::lazy_static;
 use regex::Regex;
+use itertools::Itertools;
 
 #[derive(Debug)]
 struct AlmanacMapRange {
@@ -179,12 +180,33 @@ fn day5part1(almanac: &Almanac) -> Result<u64> {
     }
 }
 
+fn day5part2(almanac: &Almanac) -> Result<u64> {
+    let route = compute_mapping_route(almanac, &"seed".to_owned(), &"location".to_owned())?;
+
+    //TODO: This really needs to be optimized better. Takes several minutes on the daily problem input because it's brute-forcing hundreds of millions of inputs
+
+    let min_location_opt = almanac.seeds
+        .iter()
+        .tuples()
+        .flat_map(|(start, count)| (*start)..(*start + *count))
+        .map(|seed| compute_mapping(almanac, &route, seed))
+        .min();
+
+    if let Some(min_location) = min_location_opt {
+        Ok(min_location)
+    }
+    else {
+        Err(anyhow!("There was no min value. Are there no seeds?"))
+    }
+}
+
 fn main() -> Result<()> {
     let input = fs::read_to_string("input.txt")
         .expect("Could not read input.txt");
     let almanac = parse_almanac(&input)?;
 
     println!("Day 5 part 1 answer: {}", day5part1(&almanac)?);
+    println!("Day 5 part 2 answer: {}", day5part2(&almanac)?);
 
     Ok(())
 }
@@ -231,6 +253,48 @@ humidity-to-location map:
         let almanac = parse_almanac(&INPUT.to_owned())?;
 
         assert_eq!(day5part1(&almanac)?, 35);
+
+        Ok(())
+    }
+
+    #[test]
+    fn day5part2_returns_correct_value() -> Result<()> {
+        const INPUT: &str = "seeds: 79 14 55 13
+
+seed-to-soil map:
+50 98 2
+52 50 48
+
+soil-to-fertilizer map:
+0 15 37
+37 52 2
+39 0 15
+
+fertilizer-to-water map:
+49 53 8
+0 11 42
+42 0 7
+57 7 4
+
+water-to-light map:
+88 18 7
+18 25 70
+
+light-to-temperature map:
+45 77 23
+81 45 19
+68 64 13
+
+temperature-to-humidity map:
+0 69 1
+1 0 69
+
+humidity-to-location map:
+60 56 37
+56 93 4";
+        let almanac = parse_almanac(&INPUT.to_owned())?;
+
+        assert_eq!(day5part2(&almanac)?, 46);
 
         Ok(())
     }

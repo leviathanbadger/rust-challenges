@@ -19,12 +19,15 @@ enum Card {
     J = b'J',
     Q = b'Q',
     K = b'K',
-    A = b'A'
+    A = b'A',
+
+    Joker = b'*'
 }
 
 impl Card {
     fn card_value(self) -> u32 {
         match self {
+            Card::Joker => 0,
             Card::Two => 2,
             Card::Three => 3,
             Card::Four => 4,
@@ -167,6 +170,25 @@ fn determine_hand_type(mut cards: [Card; 5]) -> HandType {
     }
 }
 
+fn determine_hand_type_with_jokers(cards: [Card; 5]) -> HandType {
+    if cards[0] != Card::J && cards[1] != Card::J && cards[2] != Card::J && cards[3] != Card::J && cards[4] != Card::J {
+        return determine_hand_type(cards);
+    }
+
+    cards.iter()
+        .map(|card| {
+            let mut modified_cards = cards;
+            for q in 0..5 {
+                if cards[q] == Card::J {
+                    modified_cards[q] = *card;
+                }
+            }
+            determine_hand_type(modified_cards)
+        })
+        .max()
+        .unwrap()
+}
+
 fn parse_hand(line: &str) -> Result<Hand> {
     let capture_opt = HAND_REGEX.captures(line);
     match capture_opt {
@@ -211,12 +233,32 @@ fn day7part1(hands: &Vec<Hand>) -> u32 {
         .sum()
 }
 
+fn day7part2(hands: &mut Vec<Hand>) -> u32 {
+    for q in 0..hands.len() {
+        hands[q].hand_type = determine_hand_type_with_jokers(hands[q].cards);
+        for w in 0..5 {
+            if hands[q].cards[w] == Card::J {
+                hands[q].cards[w] = Card::Joker;
+            }
+        }
+    }
+
+    hands.sort_unstable();
+
+    hands
+        .iter()
+        .enumerate()
+        .map(|(idx, hand)| hand.bid * ((idx as u32) + 1))
+        .sum()
+}
+
 fn main() -> Result<()> {
     let input = fs::read_to_string("input.txt")
         .expect("Could not read input.txt");
-    let hands = parse_hands(&input)?;
+    let mut hands = parse_hands(&input)?;
 
     println!("Day 7 part 1 answer: {}", day7part1(&hands));
+    println!("Day 7 part 2 answer: {}", day7part2(&mut hands));
 
     Ok(())
 }
@@ -331,6 +373,15 @@ mod tests {
     }
 
     #[test]
+    fn determine_hand_type_with_jokers_returns_correct_value() {
+        assert_eq!(determine_hand_type_with_jokers([Card::Three, Card::Two, Card::T, Card::Three, Card::K]), HandType::OnePair);
+        assert_eq!(determine_hand_type_with_jokers([Card::K, Card::K, Card::Six, Card::Seven, Card::Seven]), HandType::TwoPair);
+        assert_eq!(determine_hand_type_with_jokers([Card::T, Card::Five, Card::Five, Card::J, Card::Five]), HandType::FourOfAKind);
+        assert_eq!(determine_hand_type_with_jokers([Card::K, Card::T, Card::J, Card::J, Card::T]), HandType::FourOfAKind);
+        assert_eq!(determine_hand_type_with_jokers([Card::Q, Card::Q, Card::Q, Card::J, Card::A]), HandType::FourOfAKind);
+    }
+
+    #[test]
     fn day7part1_returns_correct_value() -> Result<()> {
         const INPUT: &str = "32T3K 765
 T55J5 684
@@ -340,6 +391,20 @@ QQQJA 483";
         let hands = parse_hands(&INPUT.to_owned())?;
 
         assert_eq!(day7part1(&hands), 6440);
+
+        Ok(())
+    }
+
+    #[test]
+    fn day7part2_returns_correct_value() -> Result<()> {
+        const INPUT: &str = "32T3K 765
+T55J5 684
+KK677 28
+KTJJT 220
+QQQJA 483";
+        let mut hands = parse_hands(&INPUT.to_owned())?;
+
+        assert_eq!(day7part2(&mut hands), 5905);
 
         Ok(())
     }

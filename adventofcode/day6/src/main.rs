@@ -2,18 +2,18 @@
 
 #[derive(Debug, Clone, Copy)]
 struct RaceDetails {
-    time: u32,
-    distance_record: u32
+    time: u64,
+    distance_record: u64
 }
 
-fn count_ways_to_win(race: RaceDetails) -> u32 {
+fn count_ways_to_win(race: RaceDetails) -> u64 {
     (1..(race.time - 1))
         .map(|push_time| (race.time - push_time) * push_time)
         .filter(|dist| *dist > race.distance_record)
-        .count() as u32
+        .count() as u64
 }
 
-fn day6part1(races: &[RaceDetails]) -> u32 {
+fn count_ways_to_win_all_races(races: &[RaceDetails]) -> u64 {
     races
         .iter()
         .map(|race| count_ways_to_win(*race))
@@ -40,7 +40,13 @@ fn main() {
         }
     ];
 
-    println!("Day 6 part 1 answer: {}", day6part1(&RACES));
+    println!("Day 6 part 1 answer: {}", count_ways_to_win_all_races(&RACES));
+
+    const BIG_RACE: RaceDetails = RaceDetails {
+        time: 40829166,
+        distance_record: 277133813481063
+    };
+    println!("Day 6 part 2 answer: {}", count_ways_to_win_all_races(&[BIG_RACE]));
 }
 
 #[cfg(test)]
@@ -48,7 +54,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn day4part1_returns_correct_value() {
+    fn count_ways_to_win_all_races_returns_correct_value() {
         const RACES: [RaceDetails; 3] = [
             RaceDetails {
                 time: 7,
@@ -64,6 +70,16 @@ mod tests {
             }
         ];
 
-        assert_eq!(day6part1(&RACES), 288);
+        assert_eq!(count_ways_to_win_all_races(&RACES), 288);
+    }
+
+    #[test]
+    fn count_ways_to_win_all_races_returns_correct_value_2() {
+        const BIG_RACE: RaceDetails = RaceDetails {
+            time: 71530,
+            distance_record: 940200
+        };
+
+        assert_eq!(count_ways_to_win_all_races(&[BIG_RACE]), 71503);
     }
 }

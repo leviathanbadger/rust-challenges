@@ -1,5 +1,5 @@
 use core::result::Result::Ok;
-use std::{fs, num::ParseIntError};
+use std::{fs, num::ParseIntError, ops::Range};
 use anyhow::*;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -94,7 +94,8 @@ fn parse_almanac(input: &String) -> Result<Almanac> {
             }
         }
         else if let Ok(new_map) = parse_map_names(line) {
-            if let Some(current_map_unwrapped) = current_map {
+            if let Some(mut current_map_unwrapped) = current_map {
+                current_map_unwrapped.ranges.sort_unstable_by_key(|range| range.src_range_start);
                 maps.push(current_map_unwrapped);
             }
             current_map = Some(new_map);
@@ -112,7 +113,8 @@ fn parse_almanac(input: &String) -> Result<Almanac> {
         }
     }
 
-    if let Some(current_map_unwrapped) = current_map {
+    if let Some(mut current_map_unwrapped) = current_map {
+        current_map_unwrapped.ranges.sort_unstable_by_key(|range| range.src_range_start);
         maps.push(current_map_unwrapped);
     }
 
@@ -164,6 +166,39 @@ fn compute_mapping(almanac: &Almanac, route: &Vec<usize>, input: u64) -> u64 {
         .fold(input, |input, idx| compute_single_mapping(&almanac.maps[*idx], input))
 }
 
+fn compute_range_mappings(almanac: &Almanac, route: &Vec<usize>, start_input_ranges: Vec<Range<u64>>) -> Vec<Range<u64>> {
+    let mut input_ranges = start_input_ranges;
+
+    for map_idx in route {
+        let map = &almanac.maps[*map_idx];
+        let mut next_input_ranges = vec![];
+
+        for input_range in input_ranges {
+            let matching_ranges = map.ranges
+                .iter()
+                .filter(|test_range| test_range.src_range_start + test_range.range_length > input_range.start && test_range.src_range_start < input_range.end)
+                .collect::<Vec<&AlmanacMapRange>>();
+            let mut pos = input_range.start;
+            for matching_range in matching_ranges {
+                if pos < matching_range.src_range_start {
+                    next_input_ranges.push(pos..matching_range.src_range_start);
+                    pos = matching_range.src_range_start;
+                }
+                let range_to = u64::min(matching_range.src_range_start + matching_range.range_length, input_range.end);
+                next_input_ranges.push((pos - matching_range.src_range_start + matching_range.dest_range_start)..(range_to - matching_range.src_range_start + matching_range.dest_range_start));
+                pos = range_to;
+            }
+            if pos < input_range.end {
+                next_input_ranges.push(pos..input_range.end);
+            }
+        }
+
+        input_ranges = next_input_ranges;
+    }
+
+    input_ranges
+}
+
 fn day5part1(almanac: &Almanac) -> Result<u64> {
     let route = compute_mapping_route(almanac, &"seed".to_owned(), &"location".to_owned())?;
 
@@ -183,13 +218,16 @@ fn day5part1(almanac: &Almanac) -> Result<u64> {
 fn day5part2(almanac: &Almanac) -> Result<u64> {
     let route = compute_mapping_route(almanac, &"seed".to_owned(), &"location".to_owned())?;
 
-    //TODO: This really needs to be optimized better. Takes several minutes on the daily problem input because it's brute-forcing hundreds of millions of inputs
-
-    let min_location_opt = almanac.seeds
+    let mut ranges = almanac.seeds
         .iter()
         .tuples()
-        .flat_map(|(start, count)| (*start)..(*start + *count))
-        .map(|seed| compute_mapping(almanac, &route, seed))
+        .map(|(start, count)| (*start)..(*start + *count))
+        .collect::<Vec<Range<u64>>>();
+    ranges = compute_range_mappings(almanac, &route, ranges);
+
+    let min_location_opt = ranges
+        .iter()
+        .map(|range| range.start)
         .min();
 
     if let Some(min_location) = min_location_opt {

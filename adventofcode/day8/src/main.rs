@@ -26,6 +26,8 @@ impl TryFrom<u8> for Instruction {
 #[derive(Debug)]
 struct Node {
     name: String,
+    is_ghost_start_node: bool,
+    is_ghost_end_node: bool,
     choice_names: [String; 2],
     choices: [usize; 2]
 }
@@ -33,13 +35,11 @@ struct Node {
 #[derive(Debug)]
 struct Map {
     instructions: Vec<Instruction>,
-    nodes: Vec<Node>,
-    start_node_idx: usize,
-    end_node_idx: usize
+    nodes: Vec<Node>
 }
 
 lazy_static! {
-    static ref NODE_REGEX: Regex = Regex::new(r"^([A-Z]{3}) *= *[(]([A-Z]{3}), *([A-Z]{3})[)]$").unwrap();
+    static ref NODE_REGEX: Regex = Regex::new(r"^([A-Z0-9]{3}) *= *[(]([A-Z0-9]{3}), *([A-Z0-9]{3})[)]$").unwrap();
 }
 
 fn parse_node(line: &str) -> Result<Node> {
@@ -50,6 +50,8 @@ fn parse_node(line: &str) -> Result<Node> {
             let (_, [name, left_name, right_name]) = captures.extract();
             Ok(Node {
                 name: name.to_owned(),
+                is_ghost_start_node: name.ends_with('A'),
+                is_ghost_end_node: name.ends_with('Z'),
                 choice_names: [left_name.to_owned(), right_name.to_owned()],
                 choices: [usize::MAX; 2]
             })
@@ -99,39 +101,60 @@ fn parse_map(input: &String) -> Result<Map> {
         }
     }
 
-    let start_node_idx = match nodes.iter().position(|node| node.name == "AAA") {
+    Ok(Map {
+        instructions,
+        nodes
+    })
+}
+
+fn day8part1(map: &Map) -> Result<u32> {
+    let start_node_idx = match map.nodes.iter().position(|node| node.name == "AAA") {
         None => {
             return Err(anyhow!("No parsed node is named AAA. Could not find start node"))
         },
         Some(idx) => idx
     };
 
-    let end_node_idx = match nodes.iter().position(|node| node.name == "ZZZ") {
+    let end_node_idx = match map.nodes.iter().position(|node| node.name == "ZZZ") {
         None => {
             return Err(anyhow!("No parsed node is named ZZZ. Could not find end node"))
         },
         Some(idx) => idx
     };
 
-    Ok(Map {
-        instructions,
-        nodes,
-        start_node_idx,
-        end_node_idx
-    })
-}
-
-fn day8part1(map: &Map) -> u32 {
-    let mut idx = map.start_node_idx;
+    let mut idx = start_node_idx;
     let mut step_count = 0;
 
-    while idx != map.end_node_idx {
+    while idx != end_node_idx {
         let next_instruction = map.instructions[step_count % map.instructions.len()];
         idx = map.nodes[idx].choices[next_instruction as usize];
         step_count += 1;
     }
 
-    step_count as u32
+    Ok(step_count as u32)
+}
+
+fn day8part2(map: &Map) -> Result<u32> {
+    let mut indices = map.nodes
+        .iter()
+        .enumerate()
+        .filter(|(_, node)| node.is_ghost_start_node)
+        .map(|(idx, _)| idx)
+        .collect::<Vec<usize>>();
+
+    let mut step_count = 0;
+    loop {
+        if indices.iter().all(|idx| map.nodes[*idx].is_ghost_end_node) {
+            break
+        }
+        let next_instruction = map.instructions[step_count % map.instructions.len()];
+        for q in 0..indices.len() {
+            indices[q] = map.nodes[indices[q]].choices[next_instruction as usize];
+        }
+        step_count += 1;
+    }
+
+    Ok(step_count as u32)
 }
 
 fn main() -> Result<()> {
@@ -139,7 +162,8 @@ fn main() -> Result<()> {
         .expect("Could not read input.txt");
     let map = parse_map(&input)?;
 
-    println!("Day 8 part 1 answer: {}", day8part1(&map));
+    println!("Day 8 part 1 answer: {}", day8part1(&map)?);
+    println!("Day 8 part 2 answer: {}", day8part2(&map)?);
 
     Ok(())
 }
@@ -161,7 +185,7 @@ GGG = (GGG, GGG)
 ZZZ = (ZZZ, ZZZ)";
         let map = parse_map(&INPUT.to_owned())?;
 
-        assert_eq!(day8part1(&map), 2);
+        assert_eq!(day8part1(&map)?, 2);
 
         Ok(())
     }
@@ -175,7 +199,28 @@ BBB = (AAA, ZZZ)
 ZZZ = (ZZZ, ZZZ)";
         let map = parse_map(&INPUT.to_owned())?;
 
-        assert_eq!(day8part1(&map), 6);
+        assert_eq!(day8part1(&map)?, 6);
+
+        Ok(())
+    }
+
+    #[test]
+    fn day8part2_returns_correct_value() -> Result<()> {
+        const INPUT: &str = "LR
+
+11A = (11B, XXX)
+11B = (XXX, 11Z)
+11Z = (11B, XXX)
+22A = (22B, XXX)
+22B = (22C, 22C)
+22C = (22Z, 22Z)
+22Z = (22B, 22B)
+XXX = (XXX, XXX)";
+        let map = parse_map(&INPUT.to_owned())?;
+
+        println!("{:?}", map);
+
+        assert_eq!(day8part2(&map)?, 6);
 
         Ok(())
     }

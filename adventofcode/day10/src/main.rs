@@ -1,5 +1,5 @@
 use core::result::Result::Ok;
-use std::{collections::{HashMap, VecDeque}, fs};
+use std::{collections::{HashMap, HashSet, VecDeque}, fs};
 use anyhow::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -171,12 +171,63 @@ fn day10part1(map: &Map) -> Result<usize> {
     Ok(*dist_map.values().max().unwrap())
 }
 
+fn day10part2(map: &Map) -> Result<usize> {
+    let start_pos = map.get_start_position().ok_or(anyhow!("Could not find start position"))?;
+
+    let mut to_check = VecDeque::<(i32, i32)>::new();
+    to_check.push_back(start_pos);
+    let mut loop_nodes = HashSet::<(i32, i32)>::new();
+
+    let mut minx = i32::MAX;
+    let mut miny = i32::MAX;
+    let mut maxx = i32::MIN;
+    let mut maxy = i32::MIN;
+
+    while !to_check.is_empty() {
+        let pos = to_check.pop_front().unwrap();
+        if !loop_nodes.contains(&pos) {
+            loop_nodes.insert(pos);
+
+            minx = i32::min(minx, pos.0);
+            miny = i32::min(miny, pos.1);
+            maxx = i32::max(maxx, pos.0);
+            maxy = i32::max(maxy, pos.1);
+
+            let tile = map.get_tile(pos.0, pos.1);
+            if let Some((rol, ror)) = tile.get_connected_pipes(pos.0, pos.1, map) {
+                to_check.push_back(rol);
+                to_check.push_back(ror);
+            }
+        }
+    }
+
+    let mut enclosed_tiles = 0;
+
+    for y in miny..(maxy + 1) {
+        let mut pipes_passed = 0;
+        for x in minx..maxx {
+            if loop_nodes.contains(&(x, y)) {
+                let tile = map.get_tile(x, y);
+                if tile.is_self_connected_south() {
+                    pipes_passed += 1;
+                }
+            }
+            else if pipes_passed % 2 == 1 {
+                enclosed_tiles += 1;
+            }
+        }
+    }
+
+    Ok(enclosed_tiles)
+}
+
 fn main() -> Result<()> {
     let input = fs::read_to_string("input.txt")
         .expect("Could not read input.txt");
     let map = parse_map(&input)?;
 
     println!("Day 10 part 1 answer: {}", day10part1(&map)?);
+    println!("Day 10 part 2 answer: {}", day10part2(&map)?);
 
     Ok(())
 }
@@ -209,6 +260,80 @@ LJ...";
         let map = parse_map(&INPUT.to_owned())?;
 
         assert_eq!(day10part1(&map)?, 8);
+
+        Ok(())
+    }
+
+    #[test]
+    fn day8part2_returns_correct_value() -> Result<()> {
+        const INPUT: &str = "...........
+.S-------7.
+.|F-----7|.
+.||.....||.
+.||.....||.
+.|L-7.F-J|.
+.|..|.|..|.
+.L--J.L--J.
+...........";
+        let map = parse_map(&INPUT.to_owned())?;
+
+        assert_eq!(day10part2(&map)?, 4);
+
+        Ok(())
+    }
+
+    #[test]
+    fn day8part2_returns_correct_value_2() -> Result<()> {
+        const INPUT: &str = "..........
+.S------7.
+.|F----7|.
+.||....||.
+.||....||.
+.|L-7F-J|.
+.|..||..|.
+.L--JL--J.
+..........";
+        let map = parse_map(&INPUT.to_owned())?;
+
+        assert_eq!(day10part2(&map)?, 4);
+
+        Ok(())
+    }
+
+    #[test]
+    fn day8part2_returns_correct_value_3() -> Result<()> {
+        const INPUT: &str = ".F----7F7F7F7F-7....
+.|F--7||||||||FJ....
+.||.FJ||||||||L7....
+FJL7L7LJLJ||LJ.L-7..
+L--J.L7...LJS7F-7L7.
+....F-J..F7FJ|L7L7L7
+....L7.F7||L7|.L7L7|
+.....|FJLJ|FJ|F7|.LJ
+....FJL-7.||.||||...
+....L---J.LJ.LJLJ...";
+        let map = parse_map(&INPUT.to_owned())?;
+
+        assert_eq!(day10part2(&map)?, 8);
+
+        Ok(())
+    }
+
+    #[test]
+    fn day8part2_returns_correct_value_4() -> Result<()> {
+        const INPUT: &str = "FF7FSF7F7F7F7F7F---7
+L|LJ||||||||||||F--J
+FL-7LJLJ||||||LJL-77
+F--JF--7||LJLJ7F7FJ-
+L---JF-JLJ.||-FJLJJ7
+|F|F-JF---7F7-L7L|7|
+|FFJF7L7F-JF7|JL---7
+7-L-JL7||F7|L7F-7F7|
+L.L7LFJ|||||FJL7||LJ
+L7JLJL-JLJLJL--JLJ.L";
+        let map = parse_map(&INPUT.to_owned())?;
+
+        assert_eq!(day10part2(&map)?, 10);
 
         Ok(())
     }

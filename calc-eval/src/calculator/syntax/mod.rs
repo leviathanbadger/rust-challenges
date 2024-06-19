@@ -1,3 +1,4 @@
+mod additive_expression_syntax;
 mod expression_syntax;
 mod multiplicative_expression_syntax;
 mod primary_expression_syntax;

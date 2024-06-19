@@ -34,23 +34,51 @@ char_array_const!
     ];
 }
 
-#[derive(Debug)]
-pub enum TokenType {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TokenKind {
     Integer,
     Operator,
     Error,
     EOF
 }
-#[derive(Debug)]
+
+impl TokenKind {
+    pub fn is_literal(self) -> bool {
+        match self {
+            Self::Integer => true,
+            _ => false
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 #[allow(unused)]
 pub struct Token {
     source: String,
-    token_type: TokenType
+    token_kind: TokenKind
+}
+
+impl Token {
+    pub fn get_kind(&self) -> TokenKind {
+        self.token_kind
+    }
+
+    pub fn is_literal(&self) -> bool {
+        self.get_kind().is_literal()
+    }
+
+    pub fn is_operator(&self, op: &str) -> bool {
+        self.get_kind() == TokenKind::Operator && op == self.source
+    }
+
+    pub fn repr(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}", self.source))
+    }
 }
 
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("<{:?}; {:?}>", self.token_type, self.source))
+        f.write_fmt(format_args!("<{:?}; {}>", self.token_kind, self.source))
     }
 }
 
@@ -93,7 +121,7 @@ impl<'a> Tokenize<'a> {
         }
         Some(Token {
             source: self.full_source[start_idx..end_idx].to_owned(),
-            token_type: TokenType::Integer
+            token_kind: TokenKind::Integer
         })
     }
 
@@ -102,7 +130,7 @@ impl<'a> Tokenize<'a> {
             let end_idx = start_idx + chr.len_utf8();
             Some(Token {
                 source: self.full_source[start_idx..end_idx].to_owned(),
-                token_type: TokenType::Operator
+                token_kind: TokenKind::Operator
             })
         }
         else {
@@ -131,7 +159,7 @@ impl<'a> Tokenize<'a> {
         }
         Token {
             source: self.full_source[start_idx..end_idx].to_owned(),
-            token_type: TokenType::Error
+            token_kind: TokenKind::Error
         }
     }
 
@@ -147,7 +175,7 @@ impl<'a> Tokenize<'a> {
                     self.sent_eof = true;
                     return Some(Token {
                         source: self.full_source[self.full_source.len()..].to_owned(),
-                        token_type: TokenType::EOF
+                        token_kind: TokenKind::EOF
                     })
                 },
                 Some((start_idx, chr)) => {

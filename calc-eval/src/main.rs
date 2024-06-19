@@ -34,7 +34,7 @@ fn main() -> Result<()> {
         let result = calc.eval(line);
         match result {
             Ok(n) => println!("{}", n),
-            Err(_) => println!("There was an error evaluating your input.")
+            Err(err) => println!("There was an error evaluating your input. {}", err)
         }
     }
 

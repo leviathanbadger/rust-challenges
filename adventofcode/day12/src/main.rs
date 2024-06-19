@@ -1,10 +1,10 @@
 use core::result::Result::Ok;
-use std::{fs, num::ParseIntError};
+use std::{fs, iter, num::ParseIntError};
 use anyhow::*;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
 enum SpringCondition {
     Operational = b'.',
@@ -102,6 +102,25 @@ fn count_possible_spring_arrangements(record: &SpringConditionRecord) -> u32 {
     count_possible_spring_arrangements_sub(record, 0, 0)
 }
 
+fn unfold_record(record: &mut SpringConditionRecord, times: usize) {
+    let og_condition_length = record.condition.len();
+    record.condition = record.condition
+        .iter()
+        .cloned()
+        .chain(iter::once(SpringCondition::Unknown))
+        .cycle()
+        .take((og_condition_length + 1) * times - 1)
+        .collect::<Vec<SpringCondition>>();
+
+    let og_damages_length = record.contiguous_damaged_springs.len();
+    record.contiguous_damaged_springs = record.contiguous_damaged_springs
+        .iter()
+        .cloned()
+        .cycle()
+        .take(og_damages_length * times)
+        .collect::<Vec<usize>>();
+}
+
 fn day12part1(input: &String) -> Result<u32> {
     let records = input.lines()
         .map(|line| parse_spring_condition_record(line))
@@ -115,11 +134,29 @@ fn day12part1(input: &String) -> Result<u32> {
     Ok(result)
 }
 
+fn day12part2(input: &String) -> Result<u32> {
+    let mut records = input.lines()
+        .map(|line| parse_spring_condition_record(line))
+        .collect::<Result<Vec<SpringConditionRecord>>>()?;
+
+    for record in records.as_mut_slice() {
+        unfold_record(record, 5);
+    }
+
+    let result = records
+        .iter()
+        .map(|record| count_possible_spring_arrangements(record))
+        .sum();
+
+    Ok(result)
+}
+
 fn main() -> Result<()> {
     let input = fs::read_to_string("input.txt")
         .expect("Could not read input.txt");
 
-    println!("Day 8 part 1 answer: {}", day12part1(&input)?);
+    println!("Day 12 part 1 answer: {}", day12part1(&input)?);
+    println!("Day 12 part 2 answer: {}", day12part2(&input)?);
 
     Ok(())
 }
@@ -157,6 +194,20 @@ mod tests {
     }
 
     #[test]
+    fn day12part2_returns_correct_value() -> Result<()> {
+        const INPUT: &str = "???.### 1,1,3
+.??..??...?##. 1,1,3
+?#?#?#?#?#?#?#? 1,3,1,6
+????.#...#... 4,1,1
+????.######..#####. 1,6,5
+?###???????? 3,2,1";
+
+        assert_eq!(day12part2(&INPUT.to_owned())?, 525152);
+
+        Ok(())
+    }
+
+    #[test]
     fn count_possible_spring_arrangements_returns_correct_value() -> Result<()> {
         let tests = vec![
             ("### 3", 1),
@@ -189,6 +240,27 @@ mod tests {
 
         for (test_input, expected_output) in tests {
             let record = parse_spring_condition_record(&test_input)?;
+
+            assert_eq!(count_possible_spring_arrangements(&record), expected_output, "{} should have {} match(es)", test_input, expected_output);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn count_possible_spring_arrangements_with_unfolded_records_returns_correct_value() -> Result<()> {
+        let tests = vec![
+            ("???.### 1,1,3", 1),
+            (".??..??...?##. 1,1,3", 16384),
+            ("?#?#?#?#?#?#?#? 1,3,1,6", 1),
+            ("????.#...#... 4,1,1", 16),
+            ("????.######..#####. 1,6,5", 2500),
+            ("?###???????? 3,2,1", 506250)
+        ];
+
+        for (test_input, expected_output) in tests {
+            let mut record = parse_spring_condition_record(&test_input)?;
+            unfold_record(&mut record, 5);
 
             assert_eq!(count_possible_spring_arrangements(&record), expected_output, "{} should have {} match(es)", test_input, expected_output);
         }

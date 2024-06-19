@@ -34,9 +34,6 @@ char_array_const!
     ];
 }
 
-pub struct Tokenizer {
-}
-
 #[derive(Debug)]
 pub enum TokenType {
     Integer,
@@ -46,12 +43,12 @@ pub enum TokenType {
 }
 #[derive(Debug)]
 #[allow(unused)]
-pub struct Token<'a> {
-    source: &'a str,
+pub struct Token {
+    source: String,
     token_type: TokenType
 }
 
-impl<'a> Display for Token<'a> {
+impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("<{:?}; {:?}>", self.token_type, self.source))
     }
@@ -72,7 +69,7 @@ impl<'a> Tokenize<'a> {
         }
     }
 
-    fn try_collect_numeric(&mut self, start_idx: usize, chr: char) -> Option<Token<'a>> {
+    fn try_collect_numeric(&mut self, start_idx: usize, chr: char) -> Option<Token> {
         if chr < '0' || chr > '9' {
             return None;
         }
@@ -95,16 +92,16 @@ impl<'a> Tokenize<'a> {
             }
         }
         Some(Token {
-            source: &self.full_source[start_idx..end_idx],
+            source: self.full_source[start_idx..end_idx].to_owned(),
             token_type: TokenType::Integer
         })
     }
 
-    fn try_collect_operator(&mut self, start_idx: usize, chr: char) -> Option<Token<'a>> {
+    fn try_collect_operator(&mut self, start_idx: usize, chr: char) -> Option<Token> {
         if SINGLE_CHAR_OPERATORS.contains(&chr) {
             let end_idx = start_idx + chr.len_utf8();
             Some(Token {
-                source: &self.full_source[start_idx..end_idx],
+                source: self.full_source[start_idx..end_idx].to_owned(),
                 token_type: TokenType::Operator
             })
         }
@@ -113,7 +110,7 @@ impl<'a> Tokenize<'a> {
         }
     }
 
-    fn collect_error(&mut self, start_idx: usize, chr: char) -> Token<'a> {
+    fn collect_error(&mut self, start_idx: usize, chr: char) -> Token {
         let mut end_idx = start_idx + chr.len_utf8();
         loop {
             let next = self.char_indices.peek();
@@ -133,12 +130,12 @@ impl<'a> Tokenize<'a> {
             }
         }
         Token {
-            source: &self.full_source[start_idx..end_idx],
+            source: self.full_source[start_idx..end_idx].to_owned(),
             token_type: TokenType::Error
         }
     }
 
-    fn try_collect_token(&mut self) -> Option<Token<'a>> {
+    fn try_collect_token(&mut self) -> Option<Token> {
         if self.sent_eof {
             return None
         }
@@ -149,7 +146,7 @@ impl<'a> Tokenize<'a> {
                 None => {
                     self.sent_eof = true;
                     return Some(Token {
-                        source: &self.full_source[self.full_source.len()..],
+                        source: self.full_source[self.full_source.len()..].to_owned(),
                         token_type: TokenType::EOF
                     })
                 },
@@ -167,12 +164,14 @@ impl<'a> Tokenize<'a> {
 }
 
 impl<'a> Iterator for Tokenize<'a> {
-    type Item = Token<'a>;
+    type Item = Token;
 
-    #[allow(unused)]
     fn next(&mut self) -> Option<Self::Item> {
         self.try_collect_token()
     }
+}
+
+pub struct Tokenizer {
 }
 
 impl Tokenizer {

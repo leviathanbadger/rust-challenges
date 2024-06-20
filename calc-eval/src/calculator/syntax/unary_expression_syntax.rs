@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use crate::calculator::tokenizer::Token;
 use super::{
-    expression_syntax::ExpressionSyntax,
+    expression_syntax::{ExpressionPrecedence, ExpressionSyntax},
     primary_expression_syntax::PrimaryExpressionSyntax,
     syntax::Syntax
 };
@@ -54,7 +54,11 @@ impl UnaryExpressionSyntax {
     }
 }
 
-impl ExpressionSyntax for UnaryExpressionSyntax { }
+impl ExpressionSyntax for UnaryExpressionSyntax {
+    fn get_expression_precedence(&self) -> ExpressionPrecedence {
+        ExpressionPrecedence::Unary
+    }
+}
 
 impl Syntax for UnaryExpressionSyntax { }
 
@@ -62,12 +66,20 @@ impl Display for UnaryExpressionSyntax {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.kind {
             UnaryExpressionKind::Plus => {
-                write!(f, "+{}", self.nested_expr)?;
+                write!(f, "+")?;
             },
             UnaryExpressionKind::Minus => {
-                write!(f, "-{}", self.nested_expr)?;
+                write!(f, "-")?;
             }
         };
+
+        let needs_parenthesis = self.nested_expr.get_expression_precedence() > self.get_expression_precedence();
+        if needs_parenthesis {
+            write!(f, "({})", self.nested_expr)?;
+        }
+        else {
+            write!(f, "{}", self.nested_expr)?;
+        }
 
         Ok(())
     }

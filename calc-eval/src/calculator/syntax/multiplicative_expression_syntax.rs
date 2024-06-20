@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use crate::calculator::tokenizer::Token;
 use super::{
-    expression_syntax::ExpressionSyntax,
+    expression_syntax::{ExpressionPrecedence, ExpressionSyntax},
     syntax::Syntax,
     unary_expression_syntax::UnaryExpressionSyntax
 };
@@ -63,23 +63,47 @@ impl MultiplicativeExpressionSyntax {
     }
 }
 
-impl ExpressionSyntax for MultiplicativeExpressionSyntax { }
+impl ExpressionSyntax for MultiplicativeExpressionSyntax {
+    fn get_expression_precedence(&self) -> ExpressionPrecedence {
+        ExpressionPrecedence::Multiplicative
+    }
+}
 
 impl Syntax for MultiplicativeExpressionSyntax { }
 
 impl Display for MultiplicativeExpressionSyntax {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        {
+            let needs_parenthesis = self.left_expr.get_expression_precedence() > self.get_expression_precedence();
+            if needs_parenthesis {
+                write!(f, "({})", self.left_expr)?;
+            }
+            else {
+                write!(f, "{}", self.left_expr)?;
+            }
+        }
+
         match self.kind {
             MultiplicativeExpressionKind::Multiply => {
-                write!(f, "{} * {}", self.left_expr, self.right_expr)?;
+                write!(f, " * ")?;
             },
             MultiplicativeExpressionKind::Divide => {
-                write!(f, "{} / {}", self.left_expr, self.right_expr)?;
+                write!(f, " / ")?;
             },
             MultiplicativeExpressionKind::Modulus => {
-                write!(f, "{} % {}", self.left_expr, self.right_expr)?;
+                write!(f, " % ")?;
             }
         };
+
+        {
+            let needs_parenthesis = self.right_expr.get_expression_precedence() >= self.get_expression_precedence();
+            if needs_parenthesis {
+                write!(f, "({})", self.right_expr)?;
+            }
+            else {
+                write!(f, "{}", self.right_expr)?;
+            }
+        }
 
         Ok(())
     }

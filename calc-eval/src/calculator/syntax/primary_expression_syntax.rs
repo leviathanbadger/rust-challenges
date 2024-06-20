@@ -1,20 +1,18 @@
 use std::fmt::Display;
 use crate::calculator::tokenizer::Token;
 use super::{
-    expression_syntax::ExpressionSyntax,
+    expression_syntax::{ExpressionPrecedence, ExpressionSyntax},
     syntax::Syntax
 };
 
 #[derive(Debug)]
 pub enum PrimaryExpressionKind {
-    Literal,
-    ParenthesizedExpression
+    Literal
 }
 
 pub struct PrimaryExpressionSyntax {
     kind: PrimaryExpressionKind,
-    literal_token: Option<Token>,
-    nested_expr: Option<Box<dyn ExpressionSyntax>>
+    literal_token: Option<Token>
 }
 
 impl PrimaryExpressionSyntax {
@@ -29,8 +27,7 @@ impl PrimaryExpressionSyntax {
 
             return Some(Box::new(PrimaryExpressionSyntax {
                 kind: PrimaryExpressionKind::Literal,
-                literal_token: Some(token.clone()),
-                nested_expr: None
+                literal_token: Some(token.clone())
             }))
         }
 
@@ -40,11 +37,7 @@ impl PrimaryExpressionSyntax {
             if let Some(nested_expr) = nested_expr_opt {
                 if npos < tokens.len() && tokens[npos].is_operator(")") {
                     *pos = npos + 1;
-                    return Some(Box::new(PrimaryExpressionSyntax {
-                        kind: PrimaryExpressionKind::ParenthesizedExpression,
-                        literal_token: None,
-                        nested_expr: Some(nested_expr)
-                    }))
+                    return Some(nested_expr)
                 }
             }
         }
@@ -53,7 +46,11 @@ impl PrimaryExpressionSyntax {
     }
 }
 
-impl ExpressionSyntax for PrimaryExpressionSyntax { }
+impl ExpressionSyntax for PrimaryExpressionSyntax {
+    fn get_expression_precedence(&self) -> ExpressionPrecedence {
+        ExpressionPrecedence::Primary
+    }
+}
 
 impl Syntax for PrimaryExpressionSyntax { }
 
@@ -62,9 +59,6 @@ impl Display for PrimaryExpressionSyntax {
         match self.kind {
             PrimaryExpressionKind::Literal => {
                 self.literal_token.as_ref().unwrap().repr(f)?;
-            },
-            PrimaryExpressionKind::ParenthesizedExpression => {
-                write!(f, "({})", self.nested_expr.as_ref().unwrap())?;
             }
         };
 

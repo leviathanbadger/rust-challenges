@@ -1,5 +1,8 @@
 use std::fmt::Display;
-use crate::calculator::tokenizer::Token;
+use crate::calculator::{
+    interpreter::{MethodBuilder, Op},
+    tokenizer::Token
+};
 use super::{
     expression_syntax::{ExpressionPrecedence, ExpressionSyntax},
     syntax::Syntax
@@ -49,6 +52,17 @@ impl PrimaryExpressionSyntax {
 impl ExpressionSyntax for PrimaryExpressionSyntax {
     fn get_expression_precedence(&self) -> ExpressionPrecedence {
         ExpressionPrecedence::Primary
+    }
+
+    fn emit_bytecode(&self, method_builder: &mut MethodBuilder) -> anyhow::Result<()> {
+        match self.kind {
+            PrimaryExpressionKind::Literal => {
+                let val = f64::try_from(self.literal_token.as_ref().unwrap())?;
+                method_builder.ops.push(Op::LdcF8(val));
+            }
+        }
+
+        Ok(())
     }
 }
 

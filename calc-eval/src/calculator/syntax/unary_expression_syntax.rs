@@ -1,5 +1,8 @@
 use std::fmt::Display;
-use crate::calculator::tokenizer::Token;
+use crate::calculator::{
+    interpreter::{MethodBuilder, Op},
+    tokenizer::Token
+};
 use super::{
     expression_syntax::{ExpressionPrecedence, ExpressionSyntax},
     primary_expression_syntax::PrimaryExpressionSyntax,
@@ -56,6 +59,19 @@ impl UnaryExpressionSyntax {
 impl ExpressionSyntax for UnaryExpressionSyntax {
     fn get_expression_precedence(&self) -> ExpressionPrecedence {
         ExpressionPrecedence::Unary
+    }
+
+    fn emit_bytecode(&self, method_builder: &mut MethodBuilder) -> anyhow::Result<()> {
+        match self.kind {
+            UnaryExpressionKind::Minus => {
+                method_builder.ops.push(Op::Neg);
+            },
+            UnaryExpressionKind::Plus => { }
+        }
+
+        self.nested_expr.emit_bytecode(method_builder)?;
+
+        Ok(())
     }
 }
 

@@ -1,4 +1,8 @@
-use crate::calculator::tokenizer::Token;
+use anyhow::*;
+use crate::calculator::{
+    interpreter::MethodBuilder,
+    tokenizer::Token
+};
 use super::{
     additive_expression_syntax::AdditiveExpressionSyntax,
     syntax::Syntax
@@ -21,6 +25,8 @@ impl Ord for ExpressionPrecedence {
 
 pub trait ExpressionSyntax: Syntax {
     fn get_expression_precedence(&self) -> ExpressionPrecedence;
+
+    fn emit_bytecode(&self, method_builder: &mut MethodBuilder) -> Result<()>;
 }
 
 pub fn try_parse_expression(tokens: &Vec<Token>, pos: &mut usize) -> Option<Box<dyn ExpressionSyntax>> {

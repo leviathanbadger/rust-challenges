@@ -83,6 +83,17 @@ impl Display for Token {
     }
 }
 
+impl TryFrom<&Token> for f64 {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &Token) -> Result<Self, Self::Error> {
+        match value.get_kind() {
+            TokenKind::Integer => Ok(value.source.parse::<f64>()?),
+            _ => Err(anyhow::anyhow!("This token can't be interpreted as a f64"))
+        }
+    }
+}
+
 pub struct Tokenize<'a> {
     full_source: &'a str,
     char_indices: Peekable<CharIndices<'a>>,

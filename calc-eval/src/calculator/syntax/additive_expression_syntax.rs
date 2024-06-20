@@ -1,5 +1,8 @@
 use std::fmt::Display;
-use crate::calculator::tokenizer::Token;
+use crate::calculator::{
+    interpreter::{MethodBuilder, Op},
+    tokenizer::Token
+};
 use super::{
     expression_syntax::{ExpressionPrecedence, ExpressionSyntax},
     multiplicative_expression_syntax::MultiplicativeExpressionSyntax,
@@ -62,6 +65,22 @@ impl AdditiveExpressionSyntax {
 impl ExpressionSyntax for AdditiveExpressionSyntax {
     fn get_expression_precedence(&self) -> ExpressionPrecedence {
         ExpressionPrecedence::Additive
+    }
+
+    fn emit_bytecode(&self, method_builder: &mut MethodBuilder) -> anyhow::Result<()> {
+        self.left_expr.emit_bytecode(method_builder)?;
+        self.right_expr.emit_bytecode(method_builder)?;
+
+        match self.kind {
+            AdditiveExpressionKind::Add => {
+                method_builder.ops.push(Op::Add);
+            },
+            AdditiveExpressionKind::Subtract => {
+                method_builder.ops.push(Op::Sub);
+            }
+        }
+
+        Ok(())
     }
 }
 

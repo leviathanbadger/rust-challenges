@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use crate::calculator::{
+    interpreter::MethodBuilder,
     tokenizer::{Tokenizer, Token},
     syntax::try_parse_expression
 };
@@ -21,22 +22,18 @@ impl Calculator {
         let tokens = self.tokenizer.tokenize(str)
             .collect::<Vec<Token>>();
 
-        for token in tokens.iter() {
-            println!("{}", token);
-        }
-
         let mut pos = 0;
-        let expr_opt = try_parse_expression(&tokens, &mut pos);
-        if let Some(expr) = expr_opt {
-            println!("Parsed expression: {}", expr);
-        }
-        else {
-            return Err(anyhow!("Failed to parse expression."));
-        }
+        let expr = try_parse_expression(&tokens, &mut pos)
+            .ok_or(anyhow!("Failed to parse expression."))?;
 
         if pos != tokens.len() - 1 {
             return Err(anyhow!("Unexpected token: {}.", tokens[pos]));
         }
+
+        let mut method_builder = MethodBuilder::new();
+        expr.emit_bytecode(&mut method_builder)?;
+
+        println!("{:?}", method_builder.ops);
 
         Ok(0.0)
     }

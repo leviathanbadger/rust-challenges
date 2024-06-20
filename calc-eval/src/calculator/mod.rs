@@ -1,3 +1,4 @@
+mod interpreter;
 mod syntax;
 mod calculator;
 mod tokenizer;

@@ -1,18 +1,20 @@
 use anyhow::{anyhow, Result};
 use crate::calculator::{
-    interpreter::MethodBuilder,
+    interpreter::{Interpreter, MethodBuilder},
     tokenizer::{Tokenizer, Token},
     syntax::try_parse_expression
 };
 
 pub struct Calculator {
-    tokenizer: Tokenizer
+    tokenizer: Tokenizer,
+    interpreter: Interpreter
 }
 
 impl Calculator {
     pub fn new() -> Self {
         Calculator {
-            tokenizer: Tokenizer::new()
+            tokenizer: Tokenizer::new(),
+            interpreter: Interpreter::new()
         }
     }
 
@@ -33,8 +35,6 @@ impl Calculator {
         let mut method_builder = MethodBuilder::new();
         expr.emit_bytecode(&mut method_builder)?;
 
-        println!("{:?}", method_builder.ops);
-
-        Ok(0.0)
+        self.interpreter.evaluate_method(&method_builder)
     }
 }

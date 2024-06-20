@@ -62,14 +62,14 @@ impl ExpressionSyntax for UnaryExpressionSyntax {
     }
 
     fn emit_bytecode(&self, method_builder: &mut MethodBuilder) -> anyhow::Result<()> {
+        self.nested_expr.emit_bytecode(method_builder)?;
+
         match self.kind {
             UnaryExpressionKind::Minus => {
                 method_builder.ops.push(Op::Neg);
             },
             UnaryExpressionKind::Plus => { }
         }
-
-        self.nested_expr.emit_bytecode(method_builder)?;
 
         Ok(())
     }

@@ -23,34 +23,33 @@ impl UnaryExpressionSyntax {
             return None;
         }
 
-        let mut npos = *pos;
-        let token = &tokens[npos];
-        let mut kind = None;
+        let token = &tokens[*pos];
+        let mut kind_opt = None;
         if token.is_operator("+") {
-            kind = Some(UnaryExpressionKind::Plus);
-            npos += 1;
+            kind_opt = Some(UnaryExpressionKind::Plus);
         }
         else if token.is_operator("-") {
-            kind = Some(UnaryExpressionKind::Minus);
-            npos += 1;
+            kind_opt = Some(UnaryExpressionKind::Minus);
         }
 
-        let nested_expr_opt = PrimaryExpressionSyntax::try_parse_expression(tokens, &mut npos);
-        if let Some(nested_expr) = nested_expr_opt {
-            *pos = npos;
+        if let Some(kind) = kind_opt {
+            let mut npos = *pos + 1;
+            let nested_expr_opt = UnaryExpressionSyntax::try_parse_expression(tokens, &mut npos);
+            if let Some(nested_expr) = nested_expr_opt {
+                *pos = npos;
 
-            if kind.is_some() {
-                return Some(Box::new(UnaryExpressionSyntax {
-                    kind: kind.unwrap(),
-                    nested_expr: nested_expr
+                Some(Box::new(UnaryExpressionSyntax {
+                    kind,
+                    nested_expr
                 }))
             }
             else {
-                return Some(nested_expr)
+                None
             }
         }
-
-        None
+        else {
+            PrimaryExpressionSyntax::try_parse_expression(tokens, pos)
+        }
     }
 }
 

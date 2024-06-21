@@ -19,7 +19,7 @@ impl TokenKind {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(unused)]
 pub struct Token {
     pub source: String,

@@ -184,3 +184,51 @@ impl Tokenizer {
         Tokenize::new(str)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    macro_rules! eof {
+        ( ) => {
+            Token { token_kind: TokenKind::EOF, source: "".to_owned() }
+        };
+    }
+
+    macro_rules! tok {
+        ( $kind:ident , $source:expr ) => {
+            Token { token_kind: TokenKind::$kind, source: ($source).to_owned() }
+        };
+    }
+
+    #[test]
+    fn tokenizer_should_correctly_parse_tokens() {
+        let test_cases: &[(&str, &[Token])] = &[
+            ("", &[eof!()]),
+            ("25", &[tok!(Integer, "25"), eof!()]),
+            ("1 2 3", &[tok!(Integer, "1"), tok!(Integer, "2"), tok!(Integer, "3"), eof!()]),
+            ("123", &[tok!(Integer, "123"), eof!()]),
+            ("1.2", &[tok!(Float, "1.2"), eof!()]),
+            ("1.", &[tok!(Error, "1."), eof!()]),
+            (".2", &[tok!(Error, ".2"), eof!()]),
+            ("0.0", &[tok!(Float, "0.0"), eof!()]),
+            ("0..0", &[tok!(Error, "0..0"), eof!()]),
+            ("123.456", &[tok!(Float, "123.456"), eof!()]),
+            ("-2", &[tok!(Operator, "-"), tok!(Integer, "2"), eof!()]),
+            ("1+2*3/4", &[tok!(Integer, "1"), tok!(Operator, "+"), tok!(Integer, "2"), tok!(Operator, "*"), tok!(Integer, "3"), tok!(Operator, "/"), tok!(Integer, "4"), eof!()]),
+            ("612%(4/2)", &[tok!(Integer, "612"), tok!(Operator, "%"), tok!(Operator, "("), tok!(Integer, "4"), tok!(Operator, "/"), tok!(Integer, "2"), tok!(Operator, ")"), eof!()]),
+            ("fish", &[tok!(Error, "fish"), eof!()]),
+        ];
+
+        let tokenizer = Tokenizer::new();
+
+        for &(source, expected_tokens) in test_cases {
+            let actual_tokens = tokenizer.tokenize(source).collect::<Vec<Token>>();
+            assert_eq!(&actual_tokens[..], expected_tokens);
+
+            let source_with_padding = format!("  {}  ", source);
+            let actual_tokens_with_padding = tokenizer.tokenize(source_with_padding.as_str()).collect::<Vec<Token>>();
+            assert_eq!(&actual_tokens_with_padding[..], expected_tokens);
+        }
+    }
+}

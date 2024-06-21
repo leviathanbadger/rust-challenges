@@ -79,3 +79,41 @@ impl Display for PrimaryExpressionSyntax {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::calculator::{
+        syntax::try_parse_expression,
+        tokenizer::Tokenizer
+    };
+    use anyhow::*;
+    use super::*;
+
+    #[test]
+    fn emit_bytecode_should_emit_correct_bytecode() -> Result<()> {
+        let test_cases: &[(&str, &[Op])] = &[
+            ("25", &[Op::LdcF8(25.0)]),
+            ("123.456", &[Op::LdcF8(123.456)]),
+            ("(42)", &[Op::LdcF8(42.0)]),
+        ];
+
+        let tokenizer = Tokenizer::new();
+
+        for &(input, expected_ops) in test_cases {
+            let tokens = tokenizer.tokenize(input).collect();
+
+            let mut pos = 0;
+            let expr = try_parse_expression(&tokens, &mut pos);
+
+            assert!(expr.is_some());
+            assert_eq!(pos, tokens.len() - 1);
+
+            let mut method_builder = MethodBuilder::new();
+            expr.unwrap().emit_bytecode(&mut method_builder)?;
+
+            assert_eq!(&method_builder.ops[..], expected_ops);
+        }
+
+        Ok(())
+    }
+}

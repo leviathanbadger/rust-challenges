@@ -99,3 +99,43 @@ impl Display for UnaryExpressionSyntax {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::calculator::{
+        syntax::try_parse_expression,
+        tokenizer::Tokenizer
+    };
+    use anyhow::*;
+    use super::*;
+
+    #[test]
+    fn emit_bytecode_should_emit_correct_bytecode() -> Result<()> {
+        let test_cases: &[(&str, &[Op])] = &[
+            ("+25", &[Op::LdcF8(25.0)]),
+            ("-25", &[Op::LdcF8(25.0), Op::Neg]),
+            ("+-+-+-+3", &[Op::LdcF8(3.0), Op::Neg, Op::Neg, Op::Neg]),
+            ("(-(-5))", &[Op::LdcF8(5.0), Op::Neg, Op::Neg]),
+            ("(+(+7))", &[Op::LdcF8(7.0)]),
+        ];
+
+        let tokenizer = Tokenizer::new();
+
+        for &(input, expected_ops) in test_cases {
+            let tokens = tokenizer.tokenize(input).collect();
+
+            let mut pos = 0;
+            let expr = try_parse_expression(&tokens, &mut pos);
+
+            assert!(expr.is_some());
+            assert_eq!(pos, tokens.len() - 1);
+
+            let mut method_builder = MethodBuilder::new();
+            expr.unwrap().emit_bytecode(&mut method_builder)?;
+
+            assert_eq!(&method_builder.ops[..], expected_ops);
+        }
+
+        Ok(())
+    }
+}

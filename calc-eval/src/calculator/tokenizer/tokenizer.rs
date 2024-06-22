@@ -1,3 +1,4 @@
+use unicode_categories::UnicodeCategories;
 use super::token::{Token, TokenKind};
 
 macro_rules! count {
@@ -27,7 +28,9 @@ char_array_const!
         '/',
         '%',
         '(',
-        ')'
+        ')',
+        '.',
+        ','
     ];
 }
 
@@ -111,6 +114,34 @@ impl<'a> Tokenize<'a> {
         }
     }
 
+    fn try_collect_identifier(&mut self) -> Option<Token> {
+        let (start_idx, chr) = self.char_indices[self.pos];
+        if chr != '_' && !chr.is_letter() && !chr.is_number_letter() {
+            return None;
+        }
+
+        let mut end_idx = start_idx + chr.len_utf8();
+        self.pos += 1;
+
+        while self.pos < self.char_indices.len() {
+            let (next_idx, next_chr) = self.char_indices[self.pos];
+            debug_assert!(next_idx == end_idx);
+
+            if next_chr.is_letter() || next_chr.is_number_letter() || next_chr.is_number_decimal_digit() || next_chr.is_punctuation_connector() || next_chr.is_mark_nonspacing() || next_chr.is_mark_spacing_combining() || next_chr.is_other_format() {
+                end_idx += next_chr.len_utf8();
+                self.pos += 1;
+            }
+            else {
+                break;
+            }
+        }
+
+        Some(Token {
+            source: self.full_source[start_idx..end_idx].to_owned(),
+            token_kind: TokenKind::Identifier
+        })
+    }
+
     fn collect_error(&mut self) -> Token {
         let (start_idx, this_chr) = self.char_indices[self.pos];
         let mut end_idx = start_idx + this_chr.len_utf8();
@@ -119,7 +150,7 @@ impl<'a> Tokenize<'a> {
         while self.pos < self.char_indices.len() {
             let (next_idx, next_chr) = self.char_indices[self.pos];
             debug_assert!(next_idx == end_idx);
-            if next_chr.is_whitespace() || SINGLE_CHAR_OPERATORS.contains(&next_chr) {
+            if next_chr.is_whitespace() {
                 break;
             }
             else {
@@ -159,6 +190,7 @@ impl<'a> Tokenize<'a> {
         else {
             self.try_collect_numeric()
                 .or_else(|| self.try_collect_operator())
+                .or_else(|| self.try_collect_identifier())
                 .or_else(|| Some(self.collect_error()))
         }
     }
@@ -210,14 +242,16 @@ mod tests {
             ("123", &[tok!(Integer, "123"), eof!()]),
             ("1.2", &[tok!(Float, "1.2"), eof!()]),
             ("1.", &[tok!(Error, "1."), eof!()]),
-            (".2", &[tok!(Error, ".2"), eof!()]),
+            (".2", &[tok!(Operator, "."), tok!(Integer, "2"), eof!()]),
             ("0.0", &[tok!(Float, "0.0"), eof!()]),
             ("0..0", &[tok!(Error, "0..0"), eof!()]),
             ("123.456", &[tok!(Float, "123.456"), eof!()]),
             ("-2", &[tok!(Operator, "-"), tok!(Integer, "2"), eof!()]),
             ("1+2*3/4", &[tok!(Integer, "1"), tok!(Operator, "+"), tok!(Integer, "2"), tok!(Operator, "*"), tok!(Integer, "3"), tok!(Operator, "/"), tok!(Integer, "4"), eof!()]),
             ("612%(4/2)", &[tok!(Integer, "612"), tok!(Operator, "%"), tok!(Operator, "("), tok!(Integer, "4"), tok!(Operator, "/"), tok!(Integer, "2"), tok!(Operator, ")"), eof!()]),
-            ("fish", &[tok!(Error, "fish"), eof!()]),
+            ("fish", &[tok!(Identifier, "fish"), eof!()]),
+            ("fish and chips", &[tok!(Identifier, "fish"), tok!(Identifier, "and"), tok!(Identifier, "chips"), eof!()]),
+            ("min(3.5, 2.7)", &[tok!(Identifier, "min"), tok!(Operator, "("), tok!(Float, "3.5"), tok!(Operator, ","), tok!(Float, "2.7"), tok!(Operator, ")"), eof!()]),
         ];
 
         let tokenizer = Tokenizer::new();

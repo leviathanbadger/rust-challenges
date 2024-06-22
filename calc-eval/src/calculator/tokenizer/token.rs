@@ -5,6 +5,7 @@ pub enum TokenKind {
     Integer,
     Float,
     Operator,
+    Identifier,
     Error,
     EOF
 }

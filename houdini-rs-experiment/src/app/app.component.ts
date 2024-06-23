@@ -1,8 +1,9 @@
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { invoke } from "@tauri-apps/api/tauri";
-import { listen, UnlistenFn, Event } from "@tauri-apps/api/event";
+import { Observable, shareReplay } from 'rxjs';
+import { observableFromTauriEvent } from '../utils';
 
 @Component({
     selector: 'app-root',
@@ -11,22 +12,15 @@ import { listen, UnlistenFn, Event } from "@tauri-apps/api/event";
     templateUrl: './app.component.html',
     styleUrl: './app.component.css'
 })
-export class AppComponent implements OnInit, OnDestroy {
+export class AppComponent implements OnInit {
     greetingMessage = signal('');
 
-    timer = signal(0);
-    unlistenFn: UnlistenFn | null = null;
-
-    updateTimer(timer: number) {
-        this.timer.set(timer);
-    }
+    timer$!: Observable<number>;
 
     ngOnInit(): void {
-        listen('updateTimer', (event: Event<number>) => this.updateTimer(event.payload)).then(unlistenFn => this.unlistenFn = unlistenFn);
-    }
-    ngOnDestroy(): void {
-        this.unlistenFn?.();
-        this.unlistenFn = null;
+        this.timer$ = observableFromTauriEvent<number>('updateTimer').pipe(
+            shareReplay(1)
+        );
     }
 
     async greet(event: SubmitEvent, name: string): Promise<void> {

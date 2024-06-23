@@ -16,6 +16,6 @@
     </form>
     <p>{{ greetingMessage() }}</p>
     <p>
-        Timer updated in rust: {{ timer() }}
+        Timer updated in rust: {{ timer$ | async }}
     </p>
 </div>
